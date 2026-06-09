@@ -38,12 +38,7 @@ function isPrivateIPv6Mapped(hostname: string): boolean {
 
   const high = parseInt(match[1], 16);
   const low = parseInt(match[2], 16);
-  const octets = [
-    (high >> 8) & 0xff,
-    high & 0xff,
-    (low >> 8) & 0xff,
-    low & 0xff,
-  ];
+  const octets = [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff];
   const ipv4 = octets.join('.');
 
   return (

@@ -13,15 +13,10 @@
  */
 
 import { validateDomain } from './security.js';
-import type {
-  DestChain,
-  RelayCallResult,
-  RelayPaymentRequirements,
-} from './types.js';
+import type { DestChain, RelayCallResult, RelayPaymentRequirements } from './types.js';
 
 const SIPPAR_RELAY_URL =
-  process.env.SIPPAR_RELAY_URL ??
-  'https://sippar.network/api/sippar/cross-chain/pay';
+  process.env.SIPPAR_RELAY_URL ?? 'https://sippar.network/api/sippar/cross-chain/pay';
 
 // Private beta: the relay sits behind the stealth gate. Set SIPPAR_ACCESS_TOKEN
 // to a valid access token (request one from the Sippar team while in beta).
@@ -69,9 +64,7 @@ export async function probePrice(
     );
   }
   if (res.status !== 402) {
-    throw new Error(
-      `Expected 402 from Sippar relay, got ${res.status}: ${await safeText(res)}`,
-    );
+    throw new Error(`Expected 402 from Sippar relay, got ${res.status}: ${await safeText(res)}`);
   }
 
   const body = (await res.json()) as { paymentRequirements?: RelayPaymentRequirements };
@@ -100,9 +93,7 @@ export async function callWithPayment(
   });
 
   if (!res.ok) {
-    throw new Error(
-      `Relay call failed: ${res.status} ${await safeText(res)}`,
-    );
+    throw new Error(`Relay call failed: ${res.status} ${await safeText(res)}`);
   }
 
   const body = (await res.json()) as RelayCallResult;

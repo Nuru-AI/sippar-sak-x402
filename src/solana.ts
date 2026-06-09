@@ -13,20 +13,13 @@ import {
   type Connection,
   type VersionedTransaction,
 } from '@solana/web3.js';
-import {
-  createTransferInstruction,
-  getAssociatedTokenAddress,
-} from '@solana/spl-token';
+import { createTransferInstruction, getAssociatedTokenAddress } from '@solana/spl-token';
 
 /** Sippar Solana treasury (threshold-derived from the treasury principal). */
-export const SIPPAR_TREASURY = new PublicKey(
-  '6JBm9umc9KAHYAJdqAVWAqhChGDvYKtwtAe7bpPk29HX',
-);
+export const SIPPAR_TREASURY = new PublicKey('6JBm9umc9KAHYAJdqAVWAqhChGDvYKtwtAe7bpPk29HX');
 
 /** USDC mint on Solana mainnet. */
-export const USDC_MINT = new PublicKey(
-  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-);
+export const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
 
 /**
  * Resolve the agent's signing public key across the SAK wallet variants.
@@ -74,15 +67,14 @@ export async function signAndSendUSDC(
   tx.recentBlockhash = blockhash;
   tx.feePayer = payer;
 
-  const wallet = (agent as unknown as {
-    wallet: { signTransaction: (t: Transaction) => Promise<Transaction | VersionedTransaction> };
-  }).wallet;
+  const wallet = (
+    agent as unknown as {
+      wallet: { signTransaction: (t: Transaction) => Promise<Transaction | VersionedTransaction> };
+    }
+  ).wallet;
   const signed = await wallet.signTransaction(tx);
 
   const sig = await conn.sendRawTransaction(signed.serialize());
-  await conn.confirmTransaction(
-    { signature: sig, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
+  await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
   return sig;
 }

@@ -38,10 +38,13 @@ describe('probePrice', () => {
   it('returns paymentRequirements from a 402 response', async () => {
     mockFetch(
       () =>
-        new Response(JSON.stringify({ error: 'Payment Required', paymentRequirements: REQUIREMENTS }), {
-          status: 402,
-          headers: { 'content-type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({ error: 'Payment Required', paymentRequirements: REQUIREMENTS }),
+          {
+            status: 402,
+            headers: { 'content-type': 'application/json' },
+          },
+        ),
     );
     const req = await probePrice('https://svc.base.org/x', 'base');
     expect(req.amount).toBe('10300');
@@ -50,8 +53,7 @@ describe('probePrice', () => {
 
   it('sends the X-Sippar-Access token and solana source body', async () => {
     const spy = mockFetch(
-      () =>
-        new Response(JSON.stringify({ paymentRequirements: REQUIREMENTS }), { status: 402 }),
+      () => new Response(JSON.stringify({ paymentRequirements: REQUIREMENTS }), { status: 402 }),
     );
     await probePrice('https://svc.base.org/x', 'base');
     const [, init] = spy.mock.calls[0];
@@ -76,7 +78,9 @@ describe('probePrice', () => {
 
   it('throws when 402 body lacks paymentRequirements', async () => {
     mockFetch(() => new Response(JSON.stringify({ error: 'x' }), { status: 402 }));
-    await expect(probePrice('https://svc.base.org/x', 'base')).rejects.toThrow(/paymentRequirements/);
+    await expect(probePrice('https://svc.base.org/x', 'base')).rejects.toThrow(
+      /paymentRequirements/,
+    );
   });
 });
 
@@ -107,11 +111,20 @@ describe('callWithPayment', () => {
 
   it('throws when the relay returns a non-ok status', async () => {
     mockFetch(() => new Response('boom', { status: 500 }));
-    await expect(callWithPayment('https://svc.base.org/x', 'base', 'SIG')).rejects.toThrow(/Relay call failed/);
+    await expect(callWithPayment('https://svc.base.org/x', 'base', 'SIG')).rejects.toThrow(
+      /Relay call failed/,
+    );
   });
 
   it('throws when success is false', async () => {
-    mockFetch(() => new Response(JSON.stringify({ success: false, error: 'verification failed' }), { status: 200 }));
-    await expect(callWithPayment('https://svc.base.org/x', 'base', 'SIG')).rejects.toThrow(/verification failed/);
+    mockFetch(
+      () =>
+        new Response(JSON.stringify({ success: false, error: 'verification failed' }), {
+          status: 200,
+        }),
+    );
+    await expect(callWithPayment('https://svc.base.org/x', 'base', 'SIG')).rejects.toThrow(
+      /verification failed/,
+    );
   });
 });

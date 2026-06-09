@@ -15,6 +15,8 @@ Solana agent ──USDC──▶ Sippar relay ──USDC──▶ Base x402 serv
 npm install github:Nuru-AI/sippar-sak-x402
 ```
 
+> **Windows + AVG/Avast antivirus?** If `npm install` fails with `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, your AV's HTTPS scanning is intercepting TLS and Node doesn't trust its cert. Point Node at the AV root cert — `export NODE_EXTRA_CA_CERTS=/path/to/av-root.pem` — or disable HTTPS scanning for the install.
+
 ## Quickstart
 
 ```bash

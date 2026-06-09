@@ -18,8 +18,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 const FAUCET_URL =
-  process.env.SIPPAR_FAUCET_URL ??
-  'https://sippar.network/api/sippar/faucet/solana';
+  process.env.SIPPAR_FAUCET_URL ?? 'https://sippar.network/api/sippar/faucet/solana';
 
 const ACCESS_TOKEN = process.env.SIPPAR_ACCESS_TOKEN ?? 'set-SIPPAR_ACCESS_TOKEN';
 
@@ -72,9 +71,7 @@ async function main(): Promise<void> {
           'Reuse the existing wallet or try again later.',
       );
     } else if (res.status === 401 || res.status === 403) {
-      console.error(
-        'Access token rejected. Set SIPPAR_ACCESS_TOKEN to a valid token.',
-      );
+      console.error('Access token rejected. Set SIPPAR_ACCESS_TOKEN to a valid token.');
     }
     if (body) console.error(body);
     process.exit(1);
@@ -100,9 +97,7 @@ async function main(): Promise<void> {
   console.log('ANTHROPIC_API_KEY=sk-ant-...');
 
   console.log('\nTry it:');
-  console.log(
-    '  npx tsx examples/demo.ts "research the latest Solana DeFi TVL on Base"\n',
-  );
+  console.log('  npx tsx examples/demo.ts "research the latest Solana DeFi TVL on Base"\n');
 }
 
 main().catch((e) => {

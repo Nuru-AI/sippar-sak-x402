@@ -9,13 +9,7 @@
  */
 
 /** Destination chains the relay can settle on (EVM x402 services). */
-export const DEST_CHAINS = [
-  'base',
-  'arbitrum',
-  'optimism',
-  'polygon',
-  'bnb',
-] as const;
+export const DEST_CHAINS = ['base', 'arbitrum', 'optimism', 'polygon', 'bnb'] as const;
 
 export type DestChain = (typeof DEST_CHAINS)[number];
 

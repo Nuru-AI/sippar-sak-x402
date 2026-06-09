@@ -18,7 +18,7 @@ import { probePrice, callWithPayment } from './relay.js';
 import { DEST_CHAINS, type DestChain, type PayAndCallResult } from './types.js';
 
 const inputSchema = z.object({
-  serviceUrl: z.string().url(),
+  serviceUrl: z.string().url().startsWith('https://', 'serviceUrl must use https'),
   destChain: z.enum(DEST_CHAINS),
   /** Optional spend cap in micro-USDC; aborts before paying if exceeded. */
   maxPriceMicroUsdc: z.string().optional(),
@@ -56,9 +56,7 @@ async function payAndCall(
 
   const amount = BigInt(requirements.amount);
   if (maxPriceMicroUsdc !== undefined && amount > maxPriceMicroUsdc) {
-    throw new Error(
-      `Price ${amount} microUSDC exceeds max ${maxPriceMicroUsdc} microUSDC`,
-    );
+    throw new Error(`Price ${amount} microUSDC exceeds max ${maxPriceMicroUsdc} microUSDC`);
   }
 
   const sig = await signAndSendUSDC(agent, amount);
@@ -114,9 +112,7 @@ export const SipparX402Plugin: Plugin = {
       handler: async (agent: SolanaAgentKit, input: Record<string, unknown>) => {
         const parsed = inputSchema.parse(input);
         const max =
-          parsed.maxPriceMicroUsdc !== undefined
-            ? BigInt(parsed.maxPriceMicroUsdc)
-            : undefined;
+          parsed.maxPriceMicroUsdc !== undefined ? BigInt(parsed.maxPriceMicroUsdc) : undefined;
         return payAndCall(agent, parsed.serviceUrl, parsed.destChain as DestChain, max);
       },
     },
