@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.env
+.env.*
+.avg-root.pem
+~/.sippar/
+# Demo recordings — capture wallet keys/tx in terminal output. Never publish raw; re-record clean first.
+*.cast
+sippar-demo.gif
+sippar-grant-demo.mp4
+*.mp4

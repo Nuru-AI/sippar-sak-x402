@@ -1,0 +1,67 @@
+{
+  "name": "@sippar/sak-x402",
+  "version": "0.1.0",
+  "description": "SendAI Solana Agent Kit plugin: pay Solana USDC, consume Base/EVM x402 services via the Sippar cross-chain relay. No bridge, no wrapped tokens, no custody.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "sippar-init": "dist/bin/sippar-init.js"
+  },
+  "files": [
+    "dist",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "prettier --check src/",
+    "format": "prettier --write src/"
+  },
+  "keywords": [
+    "solana-agent-kit",
+    "sendai",
+    "solana",
+    "base",
+    "x402",
+    "payments",
+    "cross-chain",
+    "ai-agent",
+    "sippar"
+  ],
+  "author": "Sippar",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nuru-AI/sippar-sak-x402"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "@solana/spl-token": "^0.4.12",
+    "bs58": "^6.0.0",
+    "zod": "^3.23.0"
+  },
+  "peerDependencies": {
+    "solana-agent-kit": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@ai-sdk/anthropic": "^1.2.0",
+    "@types/node": "^22.0.0",
+    "ai": "^4.3.0",
+    "dotenv": "^16.4.0",
+    "prettier": "^3.5.3",
+    "solana-agent-kit": "^2.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.1.3"
+  }
+}
