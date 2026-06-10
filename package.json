@@ -45,8 +45,8 @@
     "url": "https://github.com/Nuru-AI/sippar-sak-x402"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.98.0",
     "@solana/spl-token": "^0.4.12",
+    "@solana/web3.js": "^1.98.0",
     "bs58": "^6.0.0",
     "zod": "^3.23.0"
   },
@@ -55,6 +55,8 @@
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "^1.2.0",
+    "@ai-sdk/google": "^1.2.22",
+    "@ai-sdk/openai": "^1.3.24",
     "@types/node": "^22.0.0",
     "ai": "^4.3.0",
     "dotenv": "^16.4.0",

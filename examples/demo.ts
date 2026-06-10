@@ -1,21 +1,59 @@
 import 'dotenv/config';
 import { SolanaAgentKit, KeypairWallet, createVercelAITools } from 'solana-agent-kit';
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { Keypair, Connection } from '@solana/web3.js';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { SipparX402Plugin } from '../src/index.js';
 
 // 1. Wallet + agent
 const kp = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!));
-const agent = new SolanaAgentKit(
-  new KeypairWallet(kp, new Connection(process.env.SOLANA_RPC_URL!)),
-  process.env.SOLANA_RPC_URL!,
-  {},
-).use(SipparX402Plugin);
+const rpcUrl = process.env.SOLANA_RPC_URL!;
+const agent = new SolanaAgentKit(new KeypairWallet(kp, rpcUrl), rpcUrl, {}).use(SipparX402Plugin);
 
-// 2. LLM
-const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+// 2. LLM — model-agnostic. The Sippar plugin is just a tool; any Vercel AI SDK
+//    provider can drive it. Pick one with AI_PROVIDER (default: anthropic) and set
+//    that provider's API key. Override the model id with AI_MODEL.
+//    No LLM at all? Run `npx tsx examples/direct.ts` instead.
+type ModelArg = Parameters<typeof generateText>[0]['model'];
+
+function resolveModel(): ModelArg {
+  const provider = (process.env.AI_PROVIDER ?? 'anthropic').toLowerCase();
+  const requireKey = (envVar: string) => {
+    if (!process.env[envVar]) {
+      console.error(
+        `AI_PROVIDER="${provider}" needs ${envVar} in your .env.\n` +
+          'Or test the payment with no LLM at all: npx tsx examples/direct.ts',
+      );
+      process.exit(1);
+    }
+  };
+
+  switch (provider) {
+    case 'anthropic':
+      requireKey('ANTHROPIC_API_KEY');
+      return createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })(
+        process.env.AI_MODEL ?? 'claude-sonnet-4-6',
+      );
+    case 'openai':
+      requireKey('OPENAI_API_KEY');
+      return createOpenAI({ apiKey: process.env.OPENAI_API_KEY })(
+        process.env.AI_MODEL ?? 'gpt-4o',
+      );
+    case 'google':
+      requireKey('GOOGLE_GENERATIVE_AI_API_KEY');
+      return createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY })(
+        process.env.AI_MODEL ?? 'gemini-1.5-pro',
+      );
+    default:
+      console.error(`Unknown AI_PROVIDER "${provider}". Use: anthropic | openai | google.`);
+      process.exit(1);
+  }
+}
+
+const model = resolveModel();
 
 // 3. Prompt -> the agent decides to use PAY_X402_VIA_SIPPAR, pays on Solana,
 //    Sippar settles on Base, the service response comes back.
@@ -28,7 +66,7 @@ const DEMO_SERVICE_URL =
   'https://blockrun-web-vbsbhh7lea-uc.a.run.app/api/v1/stocks/us/price/NVDA';
 
 const result = await generateText({
-  model: anthropic('claude-sonnet-4-5'),
+  model,
   tools: createVercelAITools(agent, agent.actions),
   maxSteps: 5,
   prompt:
