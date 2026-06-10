@@ -5,14 +5,14 @@
  *   1. probePrice()      -> POST without X-PAYMENT, expect 402 + paymentRequirements
  *   2. callWithPayment() -> POST with X-PAYMENT: <solana tx sig>, expect 200 + serviceResponse
  *
- * Contract source of truth: src/backend/src/routes/crossChainRoutes.ts
+ * Contract source of truth: the live POST /api/sippar/cross-chain/pay endpoint.
  *
  * Auth: while Sippar is in private beta the relay sits behind the stealth gate,
  * so every request carries the revocable demo access token in `X-Sippar-Access`.
  * Override with SIPPAR_ACCESS_TOKEN once the gate opens / the token is rotated.
  */
 
-import { validateDomain } from './security.js';
+import { validateDomain, createResponseValidator } from './security.js';
 import type { DestChain, RelayCallResult, RelayPaymentRequirements } from './types.js';
 
 const SIPPAR_RELAY_URL =
@@ -38,6 +38,17 @@ function assertRelayUrlSafe(): void {
   const check = validateDomain(SIPPAR_RELAY_URL);
   if (!check.valid) {
     throw new Error(`Refusing to contact relay URL: ${check.reason}`);
+  }
+}
+
+// Relay responses are small JSON; reject implausibly large bodies before we
+// parse them (memory-exhaustion defense against a compromised/tampered host).
+const checkResponseSize = createResponseValidator(256 * 1024); // 256 KB
+
+function assertResponseSizeSafe(res: Response): void {
+  const result = checkResponseSize(res);
+  if (!result.valid) {
+    throw new Error(`Sippar relay response rejected: ${result.reason}`);
   }
 }
 
@@ -67,6 +78,7 @@ export async function probePrice(
     throw new Error(`Expected 402 from Sippar relay, got ${res.status}: ${await safeText(res)}`);
   }
 
+  assertResponseSizeSafe(res);
   const body = (await res.json()) as { paymentRequirements?: RelayPaymentRequirements };
   if (!body.paymentRequirements) {
     throw new Error('402 response did not include paymentRequirements');
@@ -96,6 +108,7 @@ export async function callWithPayment(
     throw new Error(`Relay call failed: ${res.status} ${await safeText(res)}`);
   }
 
+  assertResponseSizeSafe(res);
   const body = (await res.json()) as RelayCallResult;
   if (!body.success) {
     throw new Error(`Relay reported failure: ${body.error ?? 'unknown error'}`);

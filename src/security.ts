@@ -5,9 +5,6 @@
  * sippar.network. We still validate the relay URL on every call so a tampered
  * SIPPAR_RELAY_URL env var (prompt-injection / supply-chain) cannot redirect
  * payments or leak the access token to an attacker-controlled host.
- *
- * Ported from packages/plugin-x402-solana/src/security.ts, allowlist narrowed
- * to sippar.network.
  */
 
 /** Domains the plugin is allowed to contact. */

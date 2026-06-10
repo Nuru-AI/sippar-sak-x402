@@ -2,10 +2,8 @@
  * Shared types for @sippar/sak-x402
  *
  * These mirror the live Sippar cross-chain relay contract
- * (POST https://sippar.network/api/sippar/cross-chain/pay).
- * Do not invent fields — the backend is the source of truth:
- *   src/backend/src/routes/crossChainRoutes.ts
- *   src/backend/src/services/crossChainRelayService.ts
+ * (POST https://sippar.network/api/sippar/cross-chain/pay), which is the
+ * source of truth for field names and shapes — do not invent fields.
  */
 
 /** Destination chains the relay can settle on (EVM x402 services). */
