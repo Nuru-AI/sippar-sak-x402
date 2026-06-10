@@ -9,12 +9,6 @@ Solana agent ──USDC──▶ Sippar relay ──USDC──▶ Base x402 serv
    (signs once)         (verifies + settles)      (returns data)
 ```
 
-## Demo
-
-![A Solana agent pulls demo funds from the faucet, then pays USDC on Solana to consume a Base x402 service via the Sippar relay — returning the result with live Solana-payment and Base-settlement transaction links.](./assets/sippar-demo.gif)
-
-`npx sippar-init` funds a fresh wallet, then the agent pays USDC on Solana to call a Base x402 service (live NVDA price, ~$0.001) — settled cross-chain by Sippar, with real Solscan and Basescan tx links in the output.
-
 ## Install
 
 ```bash
