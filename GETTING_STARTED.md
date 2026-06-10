@@ -84,12 +84,20 @@ For the LLM-driven action, the model fills `payload` from the user's request. Si
 
 ## Finding services to pay for
 
-`serviceUrl` can be any standard x402 endpoint on Base, Arbitrum, Optimism, Polygon, or BNB. To discover services:
+Run the built-in discovery command — it lists x402 services on the chains Sippar settles to, with prices and payload shapes. No wallet or token needed:
 
-- **Coinbase Bazaar** (Base / Coinbase ecosystem) — `https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources`
-- **PayAI registry** — `https://facilitator.payai.network/discovery/resources`
+```bash
+npx sippar-discover            # all services
+npx sippar-discover price      # filter by URL substring
+```
 
-Point `serviceUrl` at any x402 endpoint from those.
+```text
+base     ~$ 0.050  GET   https://x402.cambrian.network/x402/api/v1/evm/price-current
+base     ~$ 0.020  POST  https://parsedoc.wrapper-agency.com/api/v1/parse
+         payload: {"image_url":"https://example.com/receipt.jpg"}
+```
+
+Copy a `serviceUrl` + chain into `examples/direct.ts` or the `PAY_X402_VIA_SIPPAR` action (with `payload` matching the shape shown). It reads the public **PayAI** registry by default (`SIPPAR_DISCOVERY_URL` to override); **Coinbase Bazaar** (`https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources`) is another source (needs a CDP key).
 
 ## Configuration
 

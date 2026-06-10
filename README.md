@@ -44,6 +44,8 @@ result.solanaTxUrl;  // your Solana payment, on Solscan
 result.destTxUrl;    // Sippar's Base settlement, on Basescan
 ```
 
+Don't have a `serviceUrl` yet? **`npx sippar-discover`** lists payable x402 services with their prices and payload shapes (no wallet or token needed).
+
 > **New here?** [**GETTING_STARTED.md**](./GETTING_STARTED.md) walks you through install, prerequisites, the demo wallet + faucet, a full runnable example, sending a request/query, finding services, and configuration.
 
 ## The action

@@ -13,7 +13,8 @@
     }
   },
   "bin": {
-    "sippar-init": "dist/bin/sippar-init.js"
+    "sippar-init": "dist/bin/sippar-init.js",
+    "sippar-discover": "dist/bin/sippar-discover.js"
   },
   "files": [
     "dist",
