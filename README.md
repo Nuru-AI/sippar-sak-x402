@@ -17,13 +17,11 @@ One call: the agent pays USDC on Solana for a Base x402 service (live NVDA price
 
 ## Add it to your agent
 
-**1. Install it.**
-
 ```bash
 npm install github:Nuru-AI/sippar-sak-x402
 ```
 
-**2. Add one line to your agent.** If you already have a [Solana Agent Kit](https://github.com/sendaifun/solana-agent-kit) agent, just `.use()` the plugin:
+If you already have a [Solana Agent Kit](https://github.com/sendaifun/solana-agent-kit) agent, it's **one line**:
 
 ```typescript
 import { SipparX402Plugin } from '@sippar/sak-x402';
@@ -31,61 +29,33 @@ import { SipparX402Plugin } from '@sippar/sak-x402';
 agent.use(SipparX402Plugin);
 ```
 
-That's the whole integration. Your agent now has a **`PAY_X402_VIA_SIPPAR`** action: when the LLM needs a paid Base service, it calls the action, the agent pays USDC on Solana, and **the service's response comes straight back** — the relay fetches it for you, so there's no second request and no web/HTTP tool to enable.
+Your agent now has the **`PAY_X402_VIA_SIPPAR`** action: when the LLM needs a paid Base service, it pays USDC on Solana and **the service's response comes straight back** — the relay fetches it for you, so there's no second request and no web/HTTP tool to enable.
 
-**Starting from scratch?** A complete agent looks like this:
-
-```typescript
-import { SolanaAgentKit, KeypairWallet } from 'solana-agent-kit';
-import { SipparX402Plugin } from '@sippar/sak-x402';
-import { Keypair } from '@solana/web3.js';
-import bs58 from 'bs58';
-
-const kp = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!)); // your agent's wallet
-const rpcUrl = process.env.SOLANA_RPC_URL!;                                     // any Solana RPC
-const agent = new SolanaAgentKit(new KeypairWallet(kp, rpcUrl), rpcUrl, {}).use(SipparX402Plugin);
-```
-
-**No LLM?** Call it directly in code:
+Or call it in code, no LLM:
 
 ```typescript
 import { payAndCall } from '@sippar/sak-x402';
 
-const result = await payAndCall(agent, 'https://some-service.base.org/x', 'base');
+const result = await payAndCall(agent, 'https://some-service.base.org/search', 'base', {
+  payload: { query: 'latest Solana DeFi TVL' }, // for services that take input; omit for GET
+});
 result.response;     // the service's data (returned to you by the relay)
 result.solanaTxUrl;  // your Solana payment, on Solscan
 result.destTxUrl;    // Sippar's Base settlement, on Basescan
 ```
 
-## Try it live
-
-> Sippar is in **private beta** — `sippar-init` and the relay need a `SIPPAR_ACCESS_TOKEN`. Request one at elad@sippar.network.
-
-`npx sippar-init` mints a demo wallet and funds it from the Sippar faucet (mainnet, rate-limited). Then run the no-LLM example — it pays a live Base x402 service and prints real transaction links:
-
-```bash
-npx sippar-init
-npx tsx examples/direct.ts        # pays a live NVDA price feed on Base (~$0.001)
-```
-
-```text
-=== Result ===
-Paid:     0.001031 USDC  (https://solscan.io/tx/51sVLwhn…)
-Settled:  base  (https://basescan.org/tx/0xd8ecaa73…)
-Response: { "symbol": "NVDA", "price": 205.53, "source": "pyth" }
-```
-
-Want the LLM to decide *when* to pay? `npx tsx examples/demo.ts "get the NVDA price on Base"` — model-agnostic (Anthropic / OpenAI / Google; see [Configuration](#configuration)).
+> **New here?** [**GETTING_STARTED.md**](./GETTING_STARTED.md) walks you through install, prerequisites, the demo wallet + faucet, a full runnable example, sending a request/query, finding services, and configuration.
 
 ## The action
 
 | Field | Value |
 |-------|-------|
 | name | `PAY_X402_VIA_SIPPAR` |
-| input | `{ serviceUrl: string (https), destChain: 'base'｜'arbitrum'｜'optimism'｜'polygon'｜'bnb', maxPriceMicroUsdc?: string }` |
+| input | `{ serviceUrl: string (https), destChain: 'base'｜'arbitrum'｜'optimism'｜'polygon'｜'bnb', payload?: any, method?: 'GET'｜'POST', headers?: object, maxPriceMicroUsdc?: string }` |
 | output | `{ success, solanaTxSignature, solanaTxUrl, destChain, destTxUrl, cost, fee, response }` |
 
-`maxPriceMicroUsdc` is an optional spend cap — the call aborts before paying if the quote exceeds it.
+- **`payload`** — the request body for services that take input (search, LLM, etc.); omit for simple GET services. The relay forwards it to the service after payment. See [GETTING_STARTED.md](./GETTING_STARTED.md#sending-a-request-query-to-a-service).
+- **`maxPriceMicroUsdc`** — optional spend cap; the call aborts before paying if the quote exceeds it.
 
 ## Beyond Solana Agent Kit
 
@@ -106,18 +76,6 @@ github.com/Nuru-AI/sippar-sak-x402  →  https://gitmcp.io/Nuru-AI/sippar-sak-x4
 
 Add `https://gitmcp.io/Nuru-AI/sippar-sak-x402` as an MCP server in your assistant.
 
-## Configuration
-
-| Env var | Default | Purpose |
-|---------|---------|---------|
-| `SOLANA_PRIVATE_KEY` | keystore | base58 key for the agent wallet (examples fall back to the `sippar-init` keystore) |
-| `SOLANA_RPC_URL` | mainnet-beta | Solana RPC for broadcasting the agent's own payment |
-| `SIPPAR_RELAY_URL` | `https://sippar.network/api/sippar/cross-chain/pay` | relay endpoint |
-| `SIPPAR_ACCESS_TOKEN` | (required) | private-beta access token — request at elad@sippar.network |
-| `AI_PROVIDER` | `anthropic` | LLM provider for `demo.ts`: `anthropic` \| `openai` \| `google` |
-| `AI_MODEL` | per-provider | override the model id (e.g. `gpt-4o`, `gemini-1.5-pro`) |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | — | metered key for the chosen `AI_PROVIDER` (a Claude.ai/ChatGPT subscription won't work — these are per-token API keys) |
-
 ## Security
 
 - All relay requests are pinned to `sippar.network` over HTTPS (SSRF / token-leak defense). A tampered `SIPPAR_RELAY_URL` is rejected.
@@ -133,6 +91,8 @@ npm install
 npm run build   # tsc -> dist/
 npm test        # vitest
 ```
+
+See [GETTING_STARTED.md](./GETTING_STARTED.md) for setup, configuration, and running the examples.
 
 ## License
 
