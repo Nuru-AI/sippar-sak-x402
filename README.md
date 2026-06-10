@@ -17,9 +17,23 @@ One call: the agent pays USDC on Solana for a Base x402 service (live NVDA price
 
 ## Add it to your agent
 
+**1. Install it.**
+
 ```bash
 npm install github:Nuru-AI/sippar-sak-x402
 ```
+
+**2. Add one line to your agent.** If you already have a [Solana Agent Kit](https://github.com/sendaifun/solana-agent-kit) agent, just `.use()` the plugin:
+
+```typescript
+import { SipparX402Plugin } from '@sippar/sak-x402';
+
+agent.use(SipparX402Plugin);
+```
+
+That's the whole integration. Your agent now has a **`PAY_X402_VIA_SIPPAR`** action: when the LLM needs a paid Base service, it calls the action, the agent pays USDC on Solana, and **the service's response comes straight back** — the relay fetches it for you, so there's no second request and no web/HTTP tool to enable.
+
+**Starting from scratch?** A complete agent looks like this:
 
 ```typescript
 import { SolanaAgentKit, KeypairWallet } from 'solana-agent-kit';
@@ -27,23 +41,20 @@ import { SipparX402Plugin } from '@sippar/sak-x402';
 import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 
-const kp = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!));
-const rpcUrl = process.env.SOLANA_RPC_URL!;
+const kp = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!)); // your agent's wallet
+const rpcUrl = process.env.SOLANA_RPC_URL!;                                     // any Solana RPC
 const agent = new SolanaAgentKit(new KeypairWallet(kp, rpcUrl), rpcUrl, {}).use(SipparX402Plugin);
-
-// Your agent now has the PAY_X402_VIA_SIPPAR action — it can pay a Base x402
-// service with Solana USDC and get the response back, with transaction links.
 ```
 
-Prefer a direct call, no LLM in the loop?
+**No LLM?** Call it directly in code:
 
 ```typescript
 import { payAndCall } from '@sippar/sak-x402';
 
 const result = await payAndCall(agent, 'https://some-service.base.org/x', 'base');
-console.log(result.response);      // the service's response
-console.log(result.solanaTxUrl);   // https://solscan.io/tx/...
-console.log(result.destTxUrl);     // https://basescan.org/tx/...
+result.response;     // the service's data (returned to you by the relay)
+result.solanaTxUrl;  // your Solana payment, on Solscan
+result.destTxUrl;    // Sippar's Base settlement, on Basescan
 ```
 
 ## Try it live
