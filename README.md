@@ -9,6 +9,12 @@ Solana agent ──USDC──▶ Sippar relay ──USDC──▶ Base x402 serv
    (signs once)         (verifies + settles)      (returns data)
 ```
 
+## Demo
+
+![A Solana agent pays USDC on Solana to consume a Base x402 service via the Sippar relay — returning the live result with real Solana-payment and Base-settlement transaction links.](./assets/sippar-demo.gif)
+
+One call (`examples/direct.ts`): the agent pays USDC on Solana for a Base x402 service (live NVDA price, ~$0.001) — Sippar settles it cross-chain and returns the data with real Solscan + Basescan tx links. No bridge, no LLM, no private key on screen.
+
 ## Install
 
 ```bash
