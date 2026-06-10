@@ -40,6 +40,19 @@ npx tsx examples/direct.ts                              # default: BlockRun NVDA
 npx tsx examples/direct.ts https://some-service.base.org/x base   # or point it anywhere
 ```
 
+You'll see the Solana payment, the cross-chain settlement, and the service response — with real transaction links:
+
+```text
+=== Result ===
+Paid:     0.001031 USDC  (https://solscan.io/tx/51sVLwhn…)
+Settled:  base  (https://basescan.org/tx/0xd8ecaa73…)
+Response: {
+  "symbol": "NVDA",
+  "price": 205.53,
+  "source": "pyth"
+}
+```
+
 ### Option B — let an LLM drive it (requires a model API key)
 
 ```bash
