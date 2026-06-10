@@ -124,6 +124,7 @@ Add `https://gitmcp.io/Nuru-AI/sippar-sak-x402` as an MCP server in your assista
 - The agent only ever signs a single SPL-USDC transfer to the Sippar treasury — never an arbitrary EVM transaction.
 - The agent's Solana wallet is its own and stays local (`~/.sippar/demo-wallet.json` for the demo, or your own key) — Sippar never receives or holds it; it only verifies the resulting on-chain transaction.
 - Set `maxPriceMicroUsdc` to bound spend per call.
+- **Content privacy (in development):** today the relay calls the service and returns the response, so your request and the result transit Sippar. A content-private mode — where Sippar signs the payment credential and your agent fetches the service directly, so Sippar handles only the payment, never your request or its response — is in active development.
 
 ## Development
 
