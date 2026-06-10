@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateDomain, createResponseValidator } from './security.js';
+import { validateDomain } from './security.js';
 
 describe('validateDomain', () => {
   it('allows the sippar.network relay host', () => {
@@ -35,24 +35,5 @@ describe('validateDomain', () => {
 
   it('rejects malformed URLs', () => {
     expect(validateDomain('not a url').valid).toBe(false);
-  });
-});
-
-describe('createResponseValidator', () => {
-  const validate = createResponseValidator(1000);
-
-  it('passes responses under the size cap', () => {
-    const res = new Response('ok', { headers: { 'content-length': '500' } });
-    expect(validate(res).valid).toBe(true);
-  });
-
-  it('rejects responses over the size cap', () => {
-    const res = new Response('big', { headers: { 'content-length': '5000' } });
-    expect(validate(res).valid).toBe(false);
-  });
-
-  it('passes when content-length is absent', () => {
-    const res = new Response('ok');
-    expect(validate(res).valid).toBe(true);
   });
 });

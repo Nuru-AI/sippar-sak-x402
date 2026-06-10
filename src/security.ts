@@ -93,25 +93,3 @@ export function validateDomain(
 
   return { valid: true };
 }
-
-/**
- * Build a response-size guard. The relay response is small JSON; reject
- * anything implausibly large (decompression-bomb / memory-exhaustion defense).
- */
-export function createResponseValidator(
-  maxSize: number,
-): (response: Response) => { valid: boolean; reason?: string } {
-  return (response: Response) => {
-    const contentLength = response.headers.get('content-length');
-    if (contentLength) {
-      const size = parseInt(contentLength, 10);
-      if (!isNaN(size) && size > maxSize) {
-        return {
-          valid: false,
-          reason: `Response size ${size} exceeds maximum ${maxSize}`,
-        };
-      }
-    }
-    return { valid: true };
-  };
-}

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { SolanaAgentKit, KeypairWallet } from 'solana-agent-kit';
 import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { payAndCall } from '../src/index.js';
+import { payAndCall, DEST_CHAINS } from '../src/index.js';
 import type { DestChain } from '../src/index.js';
 
 // No LLM, no ANTHROPIC_API_KEY. This is the most direct way to test the plugin:
@@ -21,7 +21,12 @@ const serviceUrl =
   process.argv[2] ??
   process.env.DEMO_SERVICE_URL ??
   'https://blockrun-web-vbsbhh7lea-uc.a.run.app/api/v1/stocks/us/price/NVDA';
-const destChain = (process.argv[3] ?? 'base') as DestChain;
+const destChainArg = process.argv[3] ?? 'base';
+if (!(DEST_CHAINS as readonly string[]).includes(destChainArg)) {
+  console.error(`Unknown destChain "${destChainArg}". Use one of: ${DEST_CHAINS.join(', ')}.`);
+  process.exit(1);
+}
+const destChain = destChainArg as DestChain;
 
 // Optional spend cap: aborts before paying if the quote exceeds $0.05.
 const maxPriceMicroUsdc = 50_000n;
