@@ -34,11 +34,24 @@ function relayBody(serviceUrl: string, destChain: DestChain): string {
   return JSON.stringify({ sourceChain: 'solana', destChain, serviceUrl });
 }
 
-function assertRelayUrlSafe(): void {
+/**
+ * Build and send a URL-safety-checked POST to the relay. Centralizes the
+ * domain allowlist / SSRF guard so every relay request goes through it.
+ */
+async function postToRelay(
+  serviceUrl: string,
+  destChain: DestChain,
+  extraHeaders?: Record<string, string>,
+): Promise<Response> {
   const check = validateDomain(SIPPAR_RELAY_URL);
   if (!check.valid) {
     throw new Error(`Refusing to contact relay URL: ${check.reason}`);
   }
+  return fetch(SIPPAR_RELAY_URL, {
+    method: 'POST',
+    headers: relayHeaders(extraHeaders),
+    body: relayBody(serviceUrl, destChain),
+  });
 }
 
 // Relay responses are small JSON; reject implausibly large bodies before we
@@ -60,13 +73,7 @@ export async function probePrice(
   serviceUrl: string,
   destChain: DestChain,
 ): Promise<RelayPaymentRequirements> {
-  assertRelayUrlSafe();
-
-  const res = await fetch(SIPPAR_RELAY_URL, {
-    method: 'POST',
-    headers: relayHeaders(),
-    body: relayBody(serviceUrl, destChain),
-  });
+  const res = await postToRelay(serviceUrl, destChain);
 
   if (res.status === 401 || res.status === 403) {
     throw new Error(
@@ -96,13 +103,7 @@ export async function callWithPayment(
   destChain: DestChain,
   paymentSig: string,
 ): Promise<RelayCallResult> {
-  assertRelayUrlSafe();
-
-  const res = await fetch(SIPPAR_RELAY_URL, {
-    method: 'POST',
-    headers: relayHeaders({ 'X-PAYMENT': paymentSig }),
-    body: relayBody(serviceUrl, destChain),
-  });
+  const res = await postToRelay(serviceUrl, destChain, { 'X-PAYMENT': paymentSig });
 
   if (!res.ok) {
     throw new Error(`Relay call failed: ${res.status} ${await safeText(res)}`);
