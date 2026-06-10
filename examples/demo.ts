@@ -4,14 +4,17 @@ import { generateText } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { Keypair } from '@solana/web3.js';
-import bs58 from 'bs58';
 import { SipparX402Plugin } from '../src/index.js';
+import { loadDemoKeypair, solanaRpcUrl } from './wallet.js';
 
-// 1. Wallet + agent
-const kp = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!));
-const rpcUrl = process.env.SOLANA_RPC_URL!;
-const agent = new SolanaAgentKit(new KeypairWallet(kp, rpcUrl), rpcUrl, {}).use(SipparX402Plugin);
+// 1. Wallet + agent — the agent signs with its own local Solana wallet
+//    (created by `npx sippar-init`); Sippar never holds it.
+const rpcUrl = solanaRpcUrl();
+const agent = new SolanaAgentKit(
+  new KeypairWallet(loadDemoKeypair(), rpcUrl),
+  rpcUrl,
+  {},
+).use(SipparX402Plugin);
 
 // 2. LLM — model-agnostic. The Sippar plugin is just a tool; any Vercel AI SDK
 //    provider can drive it. Pick one with AI_PROVIDER (default: anthropic) and set

@@ -29,7 +29,7 @@ First, mint a wallet and pull demo funds (both options need this):
 npx sippar-init          # generate a wallet + pull demo USDC/SOL from the faucet
 ```
 
-It prints `SOLANA_PRIVATE_KEY=…` and `SOLANA_RPC_URL=…` — add those to a `.env` file, then pick a path:
+It creates and funds a demo wallet (saved to `~/.sippar/demo-wallet.json`). The examples load that wallet automatically — **no private key to copy into your shell or `.env`**. Pick a path:
 
 ### Option A — test the payment directly (no LLM, no API key)
 
@@ -101,8 +101,8 @@ console.log(result.response);    // the service's response
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
-| `SOLANA_PRIVATE_KEY` | — | base58 secret key for the agent wallet |
-| `SOLANA_RPC_URL` | — | Solana RPC endpoint |
+| `SOLANA_PRIVATE_KEY` | keystore | (optional) base58 key to use instead of the `sippar-init` demo wallet |
+| `SOLANA_RPC_URL` | mainnet-beta | (optional) Solana RPC for broadcasting the agent's own payment |
 | `SIPPAR_RELAY_URL` | `https://sippar.network/api/sippar/cross-chain/pay` | relay endpoint |
 | `SIPPAR_ACCESS_TOKEN` | (required) | private-beta access token — request from the Sippar team |
 | `AI_PROVIDER` | `anthropic` | LLM provider for `demo.ts`: `anthropic` \| `openai` \| `google` (Option B only) |
@@ -115,6 +115,7 @@ console.log(result.response);    // the service's response
 
 - All relay requests are pinned to `sippar.network` over HTTPS (SSRF / token-leak defense). A tampered `SIPPAR_RELAY_URL` is rejected.
 - The agent only ever signs a single SPL-USDC transfer to the Sippar treasury — it never signs an arbitrary EVM transaction.
+- The agent's Solana wallet is its own and stays local (`~/.sippar/demo-wallet.json` for the demo, or your own key) — Sippar never receives or holds it; it only verifies the resulting on-chain transaction.
 - Set `maxPriceMicroUsdc` to bound spend per call.
 
 ## Development

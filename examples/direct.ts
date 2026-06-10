@@ -1,9 +1,8 @@
 import 'dotenv/config';
 import { SolanaAgentKit, KeypairWallet } from 'solana-agent-kit';
-import { Keypair } from '@solana/web3.js';
-import bs58 from 'bs58';
 import { payAndCall, DEST_CHAINS } from '../src/index.js';
 import type { DestChain } from '../src/index.js';
+import { loadDemoKeypair, solanaRpcUrl } from './wallet.js';
 
 // No LLM, no ANTHROPIC_API_KEY. This is the most direct way to test the plugin:
 // it pays USDC on Solana and consumes an x402 service via the Sippar relay,
@@ -13,9 +12,8 @@ import type { DestChain } from '../src/index.js';
 //
 // Defaults to the BlockRun NVDA stock-price service on Base (~$0.001/call).
 
-const kp = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!));
-const rpc = process.env.SOLANA_RPC_URL!;
-const agent = new SolanaAgentKit(new KeypairWallet(kp, rpc), rpc, {});
+const rpc = solanaRpcUrl();
+const agent = new SolanaAgentKit(new KeypairWallet(loadDemoKeypair(), rpc), rpc, {});
 
 const serviceUrl =
   process.argv[2] ??

@@ -5,7 +5,8 @@
  * Bootstraps a demo wallet for the Sippar SAK plugin:
  *   1. Generate (or reuse) a Solana keypair at ~/.sippar/demo-wallet.json
  *   2. Hit the Sippar faucet for $0.10 USDC + 0.001 SOL (mainnet, rate-limited)
- *   3. Print the .env lines and the next command to run
+ *   3. Print the next command to run (the examples load the wallet from the
+ *      keystore — no private key is printed or copied)
  *
  * The faucet is behind the private-beta stealth gate, so set SIPPAR_ACCESS_TOKEN
  * to a valid access token (request one from the Sippar team while in beta).
@@ -91,12 +92,14 @@ async function main(): Promise<void> {
     console.log(`SOL  tx: https://solscan.io/tx/${result.solSignature}`);
   }
 
-  console.log('\nAdd to your .env:');
-  console.log(`SOLANA_PRIVATE_KEY=${bs58.encode(kp.secretKey)}`);
-  console.log('SOLANA_RPC_URL=https://api.mainnet-beta.solana.com');
-  console.log('ANTHROPIC_API_KEY=sk-ant-...');
+  console.log(`\nWallet saved to ${WALLET_PATH}`);
+  console.log(
+    'The examples load it automatically — your private key stays in that file, and Sippar never sees it.',
+  );
 
-  console.log('\nTry it:');
+  console.log('\nTry it now (no LLM, no API key):');
+  console.log('  npx tsx examples/direct.ts');
+  console.log('\nOr let an LLM drive it (set AI_PROVIDER + that provider key — see the README):');
   console.log('  npx tsx examples/demo.ts "research the latest Solana DeFi TVL on Base"\n');
 }
 
