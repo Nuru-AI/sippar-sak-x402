@@ -1,8 +1,8 @@
 # @sippar/sak-x402
 
-A [SendAI Solana Agent Kit](https://github.com/sendaifun/solana-agent-kit) plugin that lets a **Solana agent pay USDC on Solana and consume an x402 service on Base** (or Arbitrum, Optimism, Polygon, BNB) — via the Sippar cross-chain relay.
+**Sippar is the cross-chain payment highway for AI agents.** Your agent pays from the chain it already holds funds on; Sippar settles the service-side payment on another chain and hands back the result — no bridge, no wrapped tokens, no seed phrase.
 
-**No bridge. No wrapped tokens. No custody.** The agent signs one USDC transfer on Solana; Sippar verifies it, settles the service payment on the destination chain with its own treasury, and returns the service response plus both transaction links.
+`@sippar/sak-x402` brings that to the [SendAI Solana Agent Kit](https://github.com/sendaifun/solana-agent-kit): your **Solana agent pays USDC on Solana and consumes an x402 service on Base** (or Arbitrum, Optimism, Polygon, BNB) — in a single action. It signs one USDC transfer; Sippar verifies it, pays the service from its own treasury on the destination chain, and returns the response plus both transaction links.
 
 ```
 Solana agent ──USDC──▶ Sippar relay ──USDC──▶ Base x402 service
@@ -13,68 +13,13 @@ Solana agent ──USDC──▶ Sippar relay ──USDC──▶ Base x402 serv
 
 ![A Solana agent pays USDC on Solana to consume a Base x402 service via the Sippar relay — returning the live result with real Solana-payment and Base-settlement transaction links.](./assets/sippar-demo.gif)
 
-One call (`examples/direct.ts`): the agent pays USDC on Solana for a Base x402 service (live NVDA price, ~$0.001) — Sippar settles it cross-chain and returns the data with real Solscan + Basescan tx links. No bridge, no LLM, no private key on screen.
+One call: the agent pays USDC on Solana for a Base x402 service (live NVDA price, ~$0.001), Sippar settles it cross-chain, and the data comes back with real Solscan + Basescan tx links.
 
-## Install
+## Add it to your agent
 
 ```bash
 npm install github:Nuru-AI/sippar-sak-x402
 ```
-
-## Quickstart
-
-First, mint a wallet and pull demo funds (both options need this):
-
-```bash
-npx sippar-init          # generate a wallet + pull demo USDC/SOL from the faucet
-```
-
-It creates and funds a demo wallet (saved to `~/.sippar/demo-wallet.json`). The examples load that wallet automatically — **no private key to copy into your shell or `.env`**. Pick a path:
-
-### Option A — test the payment directly (no LLM, no API key)
-
-The fastest way to confirm the cross-chain flow works. Pays USDC on Solana and returns the Base service response — no model in the loop.
-
-```bash
-npx tsx examples/direct.ts                              # default: BlockRun NVDA price on Base
-npx tsx examples/direct.ts https://some-service.base.org/x base   # or point it anywhere
-```
-
-You'll see the Solana payment, the cross-chain settlement, and the service response — with real transaction links:
-
-```text
-=== Result ===
-Paid:     0.001031 USDC  (https://solscan.io/tx/51sVLwhn…)
-Settled:  base  (https://basescan.org/tx/0xd8ecaa73…)
-Response: {
-  "symbol": "NVDA",
-  "price": 205.53,
-  "source": "pyth"
-}
-```
-
-### Option B — let an LLM drive it (requires a model API key)
-
-```bash
-npx tsx examples/demo.ts "research the latest Solana DeFi TVL on Base"
-```
-
-The plugin is model-agnostic — `demo.ts` uses the Vercel AI SDK, so any provider works. Pick one with `AI_PROVIDER` and set that provider's key in your `.env`:
-
-```bash
-# default
-AI_PROVIDER=anthropic   ANTHROPIC_API_KEY=sk-ant-...
-# or
-AI_PROVIDER=openai      OPENAI_API_KEY=sk-...
-# or
-AI_PROVIDER=google      GOOGLE_GENERATIVE_AI_API_KEY=...
-```
-
-Override the model id with `AI_MODEL` (defaults: `claude-sonnet-4-6`, `gpt-4o`, `gemini-1.5-pro`).
-
-> These are **metered API keys**, billed per token — a Claude.ai (or ChatGPT/Gemini) subscription will **not** work here. If you only want to verify the payment, use Option A — it needs no model key at all.
-
-## Use in an agent
 
 ```typescript
 import { SolanaAgentKit, KeypairWallet } from 'solana-agent-kit';
@@ -86,19 +31,40 @@ const kp = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!));
 const rpcUrl = process.env.SOLANA_RPC_URL!;
 const agent = new SolanaAgentKit(new KeypairWallet(kp, rpcUrl), rpcUrl, {}).use(SipparX402Plugin);
 
-// The agent now has the PAY_X402_VIA_SIPPAR action available to the LLM.
+// Your agent now has the PAY_X402_VIA_SIPPAR action — it can pay a Base x402
+// service with Solana USDC and get the response back, with transaction links.
 ```
 
-### Direct method call (no LLM)
+Prefer a direct call, no LLM in the loop?
 
 ```typescript
 import { payAndCall } from '@sippar/sak-x402';
 
 const result = await payAndCall(agent, 'https://some-service.base.org/x', 'base');
-console.log(result.solanaTxUrl); // https://solscan.io/tx/...
-console.log(result.destTxUrl);   // https://basescan.org/tx/...
-console.log(result.response);    // the service's response
+console.log(result.response);      // the service's response
+console.log(result.solanaTxUrl);   // https://solscan.io/tx/...
+console.log(result.destTxUrl);     // https://basescan.org/tx/...
 ```
+
+## Try it live
+
+> Sippar is in **private beta** — `sippar-init` and the relay need a `SIPPAR_ACCESS_TOKEN`. Request one at elad@sippar.network.
+
+`npx sippar-init` mints a demo wallet and funds it from the Sippar faucet (mainnet, rate-limited). Then run the no-LLM example — it pays a live Base x402 service and prints real transaction links:
+
+```bash
+npx sippar-init
+npx tsx examples/direct.ts        # pays a live NVDA price feed on Base (~$0.001)
+```
+
+```text
+=== Result ===
+Paid:     0.001031 USDC  (https://solscan.io/tx/51sVLwhn…)
+Settled:  base  (https://basescan.org/tx/0xd8ecaa73…)
+Response: { "symbol": "NVDA", "price": 205.53, "source": "pyth" }
+```
+
+Want the LLM to decide *when* to pay? `npx tsx examples/demo.ts "get the NVDA price on Base"` — model-agnostic (Anthropic / OpenAI / Google; see [Configuration](#configuration)).
 
 ## The action
 
@@ -108,26 +74,43 @@ console.log(result.response);    // the service's response
 | input | `{ serviceUrl: string (https), destChain: 'base'｜'arbitrum'｜'optimism'｜'polygon'｜'bnb', maxPriceMicroUsdc?: string }` |
 | output | `{ success, solanaTxSignature, solanaTxUrl, destChain, destTxUrl, cost, fee, response }` |
 
-`maxPriceMicroUsdc` is an optional spend cap — the call aborts before paying if the quoted price exceeds it.
+`maxPriceMicroUsdc` is an optional spend cap — the call aborts before paying if the quote exceeds it.
+
+## Beyond Solana Agent Kit
+
+The plugin is a thin client over Sippar's cross-chain relay, so any agent — not just SAK — can reach it:
+
+- **HTTP** — `POST https://sippar.network/api/sippar/cross-chain/pay` returns a 402 with payment requirements, then settles on retry with an `X-PAYMENT` header.
+- **MCP** — Sippar exposes payment tools at `https://sippar.network/mcp/` for MCP-native agents.
+
+Learn more at [sippar.network](https://sippar.network).
+
+## Use with your AI coding assistant
+
+Building on Sippar with Claude, Cursor, or another AI assistant? Point it at this repo as an MCP server so it reads the real docs and code while you integrate — no hallucinated APIs:
+
+```
+github.com/Nuru-AI/sippar-sak-x402  →  https://gitmcp.io/Nuru-AI/sippar-sak-x402
+```
+
+Add `https://gitmcp.io/Nuru-AI/sippar-sak-x402` as an MCP server in your assistant.
 
 ## Configuration
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
-| `SOLANA_PRIVATE_KEY` | keystore | (optional) base58 key to use instead of the `sippar-init` demo wallet |
-| `SOLANA_RPC_URL` | mainnet-beta | (optional) Solana RPC for broadcasting the agent's own payment |
+| `SOLANA_PRIVATE_KEY` | keystore | base58 key for the agent wallet (examples fall back to the `sippar-init` keystore) |
+| `SOLANA_RPC_URL` | mainnet-beta | Solana RPC for broadcasting the agent's own payment |
 | `SIPPAR_RELAY_URL` | `https://sippar.network/api/sippar/cross-chain/pay` | relay endpoint |
-| `SIPPAR_ACCESS_TOKEN` | (required) | private-beta access token — request from the Sippar team |
-| `AI_PROVIDER` | `anthropic` | LLM provider for `demo.ts`: `anthropic` \| `openai` \| `google` (Option B only) |
+| `SIPPAR_ACCESS_TOKEN` | (required) | private-beta access token — request at elad@sippar.network |
+| `AI_PROVIDER` | `anthropic` | LLM provider for `demo.ts`: `anthropic` \| `openai` \| `google` |
 | `AI_MODEL` | per-provider | override the model id (e.g. `gpt-4o`, `gemini-1.5-pro`) |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | — | metered key for the chosen `AI_PROVIDER` (Option B only) |
-
-> **Private beta:** Sippar is gated while in private beta. Set `SIPPAR_ACCESS_TOKEN` to a valid access token (request one from the Sippar team) to run the demo end to end. It only unlocks the rate-limited faucet and relay, both capped server-side.
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | — | metered key for the chosen `AI_PROVIDER` (a Claude.ai/ChatGPT subscription won't work — these are per-token API keys) |
 
 ## Security
 
 - All relay requests are pinned to `sippar.network` over HTTPS (SSRF / token-leak defense). A tampered `SIPPAR_RELAY_URL` is rejected.
-- The agent only ever signs a single SPL-USDC transfer to the Sippar treasury — it never signs an arbitrary EVM transaction.
+- The agent only ever signs a single SPL-USDC transfer to the Sippar treasury — never an arbitrary EVM transaction.
 - The agent's Solana wallet is its own and stays local (`~/.sippar/demo-wallet.json` for the demo, or your own key) — Sippar never receives or holds it; it only verifies the resulting on-chain transaction.
 - Set `maxPriceMicroUsdc` to bound spend per call.
 
