@@ -111,6 +111,36 @@ Copy a `serviceUrl` + chain into `examples/direct.ts` or the `PAY_X402_VIA_SIPPA
 | `AI_MODEL` | per-provider | override the model id (e.g. `gpt-4o`, `gemini-1.5-pro`) |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | — | metered key for the chosen `AI_PROVIDER` |
 
+## The action
+
+| Field | Value |
+|-------|-------|
+| name | `PAY_X402_VIA_SIPPAR` |
+| input | `{ serviceUrl, destChain, payload?, method?, headers?, maxPriceMicroUsdc? }` |
+| output | `{ success, solanaTxSignature, solanaTxUrl, destChain, destTxUrl, cost, fee, response }` |
+
+- **`serviceUrl`** — an https x402 endpoint (find one with `npx sippar-discover`).
+- **`destChain`** — `base`, `arbitrum`, `optimism`, `polygon`, or `bnb`.
+- **`payload`** — request body for services that take input (see [Sending a request](#sending-a-request-query-to-a-service)).
+- **`maxPriceMicroUsdc`** — optional spend cap; aborts before paying if the quote exceeds it.
+
+## Other ways to integrate
+
+The plugin is a thin client over Sippar's cross-chain relay, so any agent — not just SAK — can reach it:
+
+- **HTTP** — `POST https://sippar.network/api/sippar/cross-chain/pay` returns a 402 with payment requirements, then settles on retry with an `X-PAYMENT` header.
+- **MCP** — Sippar exposes payment tools at `https://sippar.network/mcp/` for MCP-native agents.
+
+Learn more at [sippar.network](https://sippar.network).
+
+## Security
+
+- All relay requests are pinned to `sippar.network` over HTTPS (SSRF / token-leak defense). A tampered `SIPPAR_RELAY_URL` is rejected.
+- The agent only ever signs a single SPL-USDC transfer to the Sippar treasury — never an arbitrary EVM transaction.
+- The agent's Solana wallet is its own and stays local (`~/.sippar/demo-wallet.json` for the demo, or your own key) — Sippar never receives or holds it; it only verifies the resulting on-chain transaction.
+- Set `maxPriceMicroUsdc` to bound spend per call.
+- **Content privacy (in development):** today the relay calls the service and returns the response, so your request and the result transit Sippar. A content-private mode — Sippar signs the payment credential and your agent fetches the service directly — is in active development.
+
 ## Development
 
 ```bash
