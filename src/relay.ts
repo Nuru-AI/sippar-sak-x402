@@ -13,7 +13,12 @@
  */
 
 import { validateDomain } from './security.js';
-import type { DestChain, RelayCallResult, RelayPaymentRequirements } from './types.js';
+import type {
+  DestChain,
+  RelayCallResult,
+  RelayPaymentRequirements,
+  ServiceRequest,
+} from './types.js';
 
 const SIPPAR_RELAY_URL =
   process.env.SIPPAR_RELAY_URL ?? 'https://sippar.network/api/sippar/cross-chain/pay';
@@ -30,8 +35,15 @@ function relayHeaders(extra?: Record<string, string>): Record<string, string> {
   };
 }
 
-function relayBody(serviceUrl: string, destChain: DestChain): string {
-  return JSON.stringify({ sourceChain: 'solana', destChain, serviceUrl });
+function relayBody(serviceUrl: string, destChain: DestChain, req?: ServiceRequest): string {
+  return JSON.stringify({
+    sourceChain: 'solana',
+    destChain,
+    serviceUrl,
+    ...(req?.payload !== undefined ? { servicePayload: req.payload } : {}),
+    ...(req?.method ? { serviceMethod: req.method } : {}),
+    ...(req?.headers ? { serviceHeaders: req.headers } : {}),
+  });
 }
 
 /**
@@ -41,6 +53,7 @@ function relayBody(serviceUrl: string, destChain: DestChain): string {
 async function postToRelay(
   serviceUrl: string,
   destChain: DestChain,
+  req?: ServiceRequest,
   extraHeaders?: Record<string, string>,
 ): Promise<Response> {
   const check = validateDomain(SIPPAR_RELAY_URL);
@@ -50,7 +63,7 @@ async function postToRelay(
   return fetch(SIPPAR_RELAY_URL, {
     method: 'POST',
     headers: relayHeaders(extraHeaders),
-    body: relayBody(serviceUrl, destChain),
+    body: relayBody(serviceUrl, destChain, req),
   });
 }
 
@@ -61,8 +74,9 @@ async function postToRelay(
 export async function probePrice(
   serviceUrl: string,
   destChain: DestChain,
+  req?: ServiceRequest,
 ): Promise<RelayPaymentRequirements> {
-  const res = await postToRelay(serviceUrl, destChain);
+  const res = await postToRelay(serviceUrl, destChain, req);
 
   if (res.status === 401 || res.status === 403) {
     throw new Error(
@@ -90,8 +104,9 @@ export async function callWithPayment(
   serviceUrl: string,
   destChain: DestChain,
   paymentSig: string,
+  req?: ServiceRequest,
 ): Promise<RelayCallResult> {
-  const res = await postToRelay(serviceUrl, destChain, { 'X-PAYMENT': paymentSig });
+  const res = await postToRelay(serviceUrl, destChain, req, { 'X-PAYMENT': paymentSig });
 
   if (!res.ok) {
     throw new Error(`Relay call failed: ${res.status} ${await safeText(res)}`);

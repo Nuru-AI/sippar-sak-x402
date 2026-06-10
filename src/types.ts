@@ -76,3 +76,19 @@ export interface PayAndCallResult {
   fee: { bps: number; amount: number } | null;
   response: unknown;
 }
+
+/** Optional request to forward to the destination x402 service. */
+export interface ServiceRequest {
+  /** Request body sent to the service (for x402 services that take input). */
+  payload?: unknown;
+  /** HTTP method the service expects (defaults to the service's own requirement). */
+  method?: 'GET' | 'POST';
+  /** Extra headers to forward to the service. */
+  headers?: Record<string, string>;
+}
+
+/** Options for `payAndCall`: an optional spend cap plus the service request. */
+export interface PayOptions extends ServiceRequest {
+  /** Spend cap in micro-USDC; aborts before paying if the quote exceeds it. */
+  maxPriceMicroUsdc?: bigint;
+}

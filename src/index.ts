@@ -3,7 +3,7 @@
  *
  * Adds one capability to a Solana agent: pay USDC on Solana, consume an x402
  * service that lives on Base / Arbitrum / Optimism / Polygon / BNB, via the
- * Sippar cross-chain relay. No bridge, no wrapped tokens, no custody.
+ * Sippar cross-chain relay. No bridge, no wrapped tokens.
  *
  * Flow (per call):
  *   1. probePrice()      — ask the relay what the Solana payment is (402)
@@ -15,13 +15,19 @@ import type { Plugin, SolanaAgentKit } from 'solana-agent-kit';
 import { z } from 'zod';
 import { signAndSendUSDC } from './solana.js';
 import { probePrice, callWithPayment } from './relay.js';
-import { DEST_CHAINS, type DestChain, type PayAndCallResult } from './types.js';
+import { DEST_CHAINS, type DestChain, type PayAndCallResult, type PayOptions } from './types.js';
 
 const inputSchema = z.object({
   serviceUrl: z.string().url().startsWith('https://', 'serviceUrl must use https'),
   destChain: z.enum(DEST_CHAINS),
   /** Optional spend cap in micro-USDC; aborts before paying if exceeded. */
   maxPriceMicroUsdc: z.string().optional(),
+  /** Optional request body forwarded to the service (for services that take input). */
+  payload: z.unknown().optional(),
+  /** HTTP method the service expects (defaults to the service's requirement). */
+  method: z.enum(['GET', 'POST']).optional(),
+  /** Extra headers forwarded to the service. */
+  headers: z.record(z.string()).optional(),
 });
 
 /** Block explorer URL for a destination-chain tx hash. */
@@ -44,9 +50,10 @@ async function payAndCall(
   agent: SolanaAgentKit,
   serviceUrl: string,
   destChain: DestChain,
-  maxPriceMicroUsdc?: bigint,
+  opts: PayOptions = {},
 ): Promise<PayAndCallResult> {
-  const requirements = await probePrice(serviceUrl, destChain);
+  const { maxPriceMicroUsdc, ...req } = opts;
+  const requirements = await probePrice(serviceUrl, destChain, req);
 
   if (requirements.network !== 'solana-mainnet') {
     throw new Error(
@@ -60,7 +67,7 @@ async function payAndCall(
   }
 
   const sig = await signAndSendUSDC(agent, amount);
-  const result = await callWithPayment(serviceUrl, destChain, sig);
+  const result = await callWithPayment(serviceUrl, destChain, sig, req);
 
   return {
     success: true,
@@ -93,27 +100,33 @@ export const SipparX402Plugin: Plugin = {
       ],
       description:
         'Pay USDC on Solana to access an x402 service on Base, Arbitrum, Optimism, ' +
-        'Polygon, or BNB via the Sippar cross-chain relay. Returns the service ' +
-        'response plus Solana and destination-chain transaction URLs.',
+        'Polygon, or BNB via the Sippar cross-chain relay. Pass `payload` to send a ' +
+        'request body for services that take input. Returns the service response plus ' +
+        'Solana and destination-chain transaction URLs.',
       examples: [
         [
           {
             input: {
               serviceUrl: 'https://example-service.base.org/search',
               destChain: 'base',
+              payload: { query: 'latest Solana DeFi TVL' },
             },
             output: { success: true, response: '...' },
             explanation:
-              'Agent paid Solana USDC, Sippar settled on Base, the service returned results.',
+              'Agent paid Solana USDC, Sippar settled on Base, and the search service returned results for the query.',
           },
         ],
       ],
       schema: inputSchema,
       handler: async (agent: SolanaAgentKit, input: Record<string, unknown>) => {
         const parsed = inputSchema.parse(input);
-        const max =
-          parsed.maxPriceMicroUsdc !== undefined ? BigInt(parsed.maxPriceMicroUsdc) : undefined;
-        return payAndCall(agent, parsed.serviceUrl, parsed.destChain as DestChain, max);
+        return payAndCall(agent, parsed.serviceUrl, parsed.destChain as DestChain, {
+          maxPriceMicroUsdc:
+            parsed.maxPriceMicroUsdc !== undefined ? BigInt(parsed.maxPriceMicroUsdc) : undefined,
+          payload: parsed.payload,
+          method: parsed.method,
+          headers: parsed.headers,
+        });
       },
     },
   ],

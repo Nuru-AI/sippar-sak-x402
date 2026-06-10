@@ -26,12 +26,11 @@ if (!(DEST_CHAINS as readonly string[]).includes(destChainArg)) {
 }
 const destChain = destChainArg as DestChain;
 
-// Optional spend cap: aborts before paying if the quote exceeds $0.05.
-const maxPriceMicroUsdc = 50_000n;
-
 console.log(`Paying for ${serviceUrl} (destChain: ${destChain})...\n`);
 
-const result = await payAndCall(agent, serviceUrl, destChain, maxPriceMicroUsdc);
+// maxPriceMicroUsdc is an optional spend cap (aborts before paying if exceeded).
+// For a POST service, add `payload: { ... }` here to send a request body.
+const result = await payAndCall(agent, serviceUrl, destChain, { maxPriceMicroUsdc: 50_000n });
 
 console.log('=== Result ===');
 console.log(`Paid:     ${result.cost.usdc} USDC  (${result.solanaTxUrl})`);
