@@ -1,78 +1,70 @@
 /**
- * Shared types for @sippar/sak-x402
+ * Shared types for @sippar/sak-x402 (direct mode / Flow C).
  *
- * These mirror the live Sippar cross-chain relay contract
- * (POST https://sippar.network/api/sippar/cross-chain/pay), which is the
- * source of truth for field names and shapes — do not invent fields.
+ * The plugin pays Sippar's Solana treasury, gets a treasury-signed EIP-3009
+ * credential from POST /api/sippar/paysh/pay-from-derived, then fetches the x402
+ * service itself. Sippar never sees the request body or the service response.
  */
 
-/** Destination chains the relay can settle on (EVM x402 services). */
+/** Destination chains Sippar can sign an EIP-3009 USDC credential for. */
 export const DEST_CHAINS = ['base', 'arbitrum', 'optimism', 'polygon', 'bnb'] as const;
 
 export type DestChain = (typeof DEST_CHAINS)[number];
 
 /**
- * Payment requirements returned in the 402 response body under
- * `paymentRequirements` (also serialized into the `X-PAYMENT-REQUIRED` header).
+ * Payment requirements parsed from the SERVICE's own 402 (the agent probes the
+ * service directly — Sippar is not involved at this step).
  */
-export interface RelayPaymentRequirements {
-  sourceChain: string;
-  destChain: string;
-  /** e.g. "solana-mainnet" */
-  network: string;
-  chainId: number;
-  asset: {
-    symbol: string;
-    /** Mint (Solana) or contract address (EVM) */
-    address: string;
-    decimals: number;
-  };
+export interface ServicePaymentRequirements {
+  /** Address the destination-chain payment must be sent to (from the 402). */
+  payTo: string;
   /** Amount in base units as a string (micro-USDC for USDC). */
   amount: string;
-  /** Human-readable amount, e.g. "0.0103 USDC". */
-  amountFormatted: string;
-  /** Address the source-chain payment must be sent to. */
-  payTo: string;
-  fee: {
-    bps: number;
-    percentage: string;
-  };
-  description: string;
-}
-
-/** A single leg of the relay (incoming on source chain, outgoing on dest chain). */
-export interface RelayPaymentLeg {
-  chain: string;
-  txHash: string;
-  amount: number;
+  /** Service network identifier, e.g. "base" or "eip155:8453". */
+  network: string;
+  /** Asset (USDC contract address on the dest chain), when advertised. */
+  asset?: string;
+  /** The full accepts[] option, retained so a V2 X-PAYMENT envelope can echo it. */
+  accepted?: Record<string, unknown>;
 }
 
 /**
- * Successful relay response body
- * ({ success: true, serviceResponse, payments: { incoming, outgoing, fee } }).
+ * The treasury-signed EIP-3009 credential returned by Sippar. The agent wraps
+ * this in the X-PAYMENT envelope; Sippar never assembled the envelope or saw the
+ * serviceUrl.
  */
-export interface RelayCallResult {
-  success: boolean;
-  serviceResponse?: unknown;
-  payments?: {
-    incoming?: RelayPaymentLeg;
-    outgoing?: RelayPaymentLeg;
-    fee?: { bps: number; amount: number };
-  };
-  error?: string;
+export interface X402Credential {
+  signature: string;
+  authorization: Record<string, unknown>;
+  /** Destination chain the credential is valid on. */
+  network: string;
+}
+
+/** Result of the agent's own fetch of the service with the X-PAYMENT envelope. */
+export interface ServiceFetchResult {
+  status: number;
+  response: unknown;
+  /** Decoded later by the caller; base64 X-PAYMENT-RESPONSE header if the service set one. */
+  settlementReceipt: string | null;
+  /** Which envelope shape the service accepted (1 or 2). */
+  envelopeVersion: 1 | 2;
 }
 
 /** Normalized result returned by the plugin's `payAndCall` method. */
 export interface PayAndCallResult {
   success: boolean;
+  /** Solana payment to Sippar's treasury (the source payment). */
   solanaTxSignature: string;
   solanaTxUrl: string;
   destChain: DestChain;
+  /** Destination settlement tx, if the service's facilitator returned a receipt. */
   destTxUrl: string | null;
   cost: {
     microUsdc: string;
     usdc: number;
   };
-  fee: { bps: number; amount: number } | null;
+  /** Which X-PAYMENT envelope shape the service accepted. */
+  envelopeVersion: 1 | 2;
+  /** The service response — fetched by the agent; Sippar never saw it. */
   response: unknown;
 }
