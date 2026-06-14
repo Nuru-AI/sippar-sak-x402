@@ -5,8 +5,10 @@ import type { DestChain } from '../src/index.js';
 import { loadDemoKeypair, solanaRpcUrl } from './wallet.js';
 
 // No LLM, no ANTHROPIC_API_KEY. This is the most direct way to test the plugin:
-// it pays USDC on Solana and consumes an x402 service via the Sippar relay,
-// exactly like the agent action does — just without the model deciding to call it.
+// it pays USDC on Solana and consumes an x402 service via Sippar direct mode —
+// Sippar signs a payment credential, the agent fetches the service itself, so
+// Sippar never sees the response. Exactly like the agent action does, just
+// without the model deciding to call it.
 //
 //   npx tsx examples/direct.ts [serviceUrl] [destChain]
 //
@@ -34,5 +36,6 @@ const result = await payAndCall(agent, serviceUrl, destChain, { maxPriceMicroUsd
 
 console.log('=== Result ===');
 console.log(`Paid:     ${result.cost.usdc} USDC  (${result.solanaTxUrl})`);
-console.log(`Settled:  ${result.destChain}  (${result.destTxUrl})`);
+console.log(`Settled:  ${result.destChain}  (${result.destTxUrl ?? 'see service receipt'})`);
+console.log(`Envelope: V${result.envelopeVersion}`);
 console.log('Response:', JSON.stringify(result.response, null, 2));

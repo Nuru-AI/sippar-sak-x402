@@ -6,7 +6,7 @@ Zero to a Solana agent paying a Base x402 service. For the concept and the one-l
 
 - **A Solana wallet** (a keypair) for your agent — it's the agent's own wallet, and it pays the USDC. `npx sippar-init` can mint a throwaway demo wallet (step 1).
 - **A Solana RPC URL** — any mainnet RPC. Defaults to `https://api.mainnet-beta.solana.com`, so you can skip it.
-- **A Sippar access token** — Sippar is in private beta, so the faucet and relay are gated. Request one at **elad@sippar.network** and set it as `SIPPAR_ACCESS_TOKEN`.
+- **A Sippar access token** — Sippar is in private beta, so the faucet and credential endpoint are gated. Request one at **elad@sippar.network** and set it as `SIPPAR_ACCESS_TOKEN`.
 
 No Base wallet, no bridging, no wrapped tokens — the agent only ever holds and signs on Solana.
 
@@ -70,7 +70,7 @@ These are **metered API keys**, billed per token — a Claude.ai / ChatGPT / Gem
 
 ## Sending a request (query) to a service
 
-Many x402 services take input (a search query, a prompt). Pass it as `payload` — the relay forwards it to the service after payment:
+Many x402 services take input (a search query, a prompt). Pass it as `payload` — your agent sends it to the service directly (Sippar never sees it):
 
 ```typescript
 const result = await payAndCall(agent, 'https://some-service.base.org/search', 'base', {
@@ -105,7 +105,7 @@ Copy a `serviceUrl` + chain into `examples/direct.ts` or the `PAY_X402_VIA_SIPPA
 |---------|---------|---------|
 | `SOLANA_PRIVATE_KEY` | keystore | base58 key for the agent wallet (examples fall back to the `sippar-init` keystore) |
 | `SOLANA_RPC_URL` | mainnet-beta | Solana RPC for broadcasting the agent's own payment |
-| `SIPPAR_RELAY_URL` | `https://sippar.network/api/sippar/cross-chain/pay` | relay endpoint |
+| `SIPPAR_CREDENTIAL_URL` | `https://sippar.network/api/sippar/paysh/pay-from-derived` | credential-signing endpoint |
 | `SIPPAR_ACCESS_TOKEN` | (required) | private-beta access token — request at elad@sippar.network |
 | `AI_PROVIDER` | `anthropic` | LLM provider for `demo.ts`: `anthropic` \| `openai` \| `google` |
 | `AI_MODEL` | per-provider | override the model id (e.g. `gpt-4o`, `gemini-1.5-pro`) |
@@ -117,7 +117,7 @@ Copy a `serviceUrl` + chain into `examples/direct.ts` or the `PAY_X402_VIA_SIPPA
 |-------|-------|
 | name | `PAY_X402_VIA_SIPPAR` |
 | input | `{ serviceUrl, destChain, payload?, method?, headers?, maxPriceMicroUsdc? }` |
-| output | `{ success, solanaTxSignature, solanaTxUrl, destChain, destTxUrl, cost, fee, response }` |
+| output | `{ success, solanaTxSignature, solanaTxUrl, destChain, destTxUrl, cost, envelopeVersion, response }` |
 
 - **`serviceUrl`** — an https x402 endpoint (find one with `npx sippar-discover`).
 - **`destChain`** — `base`, `arbitrum`, `optimism`, `polygon`, or `bnb`.
@@ -126,20 +126,20 @@ Copy a `serviceUrl` + chain into `examples/direct.ts` or the `PAY_X402_VIA_SIPPA
 
 ## Other ways to integrate
 
-The plugin is a thin client over Sippar's cross-chain relay, so any agent — not just SAK — can reach it:
+The plugin is a thin client over Sippar's credential endpoint, so any agent — not just SAK — can reach it:
 
-- **HTTP** — `POST https://sippar.network/api/sippar/cross-chain/pay` returns a 402 with payment requirements, then settles on retry with an `X-PAYMENT` header.
+- **HTTP** — the agent probes the service for its 402, pays Sippar's Solana treasury, then `POST https://sippar.network/api/sippar/paysh/pay-from-derived` (with the Solana tx + the service's payTo/amount) returns a treasury-signed EIP-3009 credential; the agent submits it to the service itself in an `X-PAYMENT` header.
 - **MCP** — Sippar exposes payment tools at `https://sippar.network/mcp/` for MCP-native agents.
 
 Learn more at [sippar.network](https://sippar.network).
 
 ## Security
 
-- All relay requests are pinned to `sippar.network` over HTTPS (SSRF / token-leak defense). A tampered `SIPPAR_RELAY_URL` is rejected.
+- The credential request to Sippar is pinned to `sippar.network` over HTTPS (SSRF / token-leak defense). A tampered `SIPPAR_CREDENTIAL_URL` is rejected. The agent's own fetches to the x402 service require HTTPS and block private/internal IPs, but are not domain-pinned (the agent chooses the service).
 - The agent only ever signs a single SPL-USDC transfer to the Sippar treasury — never an arbitrary EVM transaction.
 - The agent's Solana wallet is its own and stays local (`~/.sippar/demo-wallet.json` for the demo, or your own key) — Sippar never receives or holds it; it only verifies the resulting on-chain transaction.
 - Set `maxPriceMicroUsdc` to bound spend per call.
-- **Content privacy (in development):** today the relay calls the service and returns the response, so your request and the result transit Sippar. A content-private mode — Sippar signs the payment credential and your agent fetches the service directly — is in active development.
+- **Content-private:** Sippar signs the payment credential; your agent fetches the service directly, so your request and the result never transit Sippar — it sees only the payment metadata (payTo, amount) and your Solana payment. Still treasury-custodial: the treasury fronts the destination payment (your agent already paid Sippar on Solana).
 
 ## Development
 
