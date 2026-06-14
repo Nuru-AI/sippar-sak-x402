@@ -9,15 +9,16 @@
  * on Solana).
  *
  * Flow:
- *   1. probeService()        — agent POSTs the SERVICE directly, parses its 402
+ *   1. probeService()        — agent calls the SERVICE directly, parses its 402
  *   2. (caller pays Sippar's Solana treasury — see signAndSendUSDC in solana.ts)
  *   3. getCredential()       — POST /api/sippar/paysh/pay-from-derived → { signature, authorization }
- *   4. fetchWithCredential() — agent re-POSTs the SERVICE with X-PAYMENT, returns the response
+ *   4. fetchWithCredential() — agent re-calls the SERVICE with X-PAYMENT, returns the response
  *
  * Sippar is contacted only in step 3 (sippar.network, SSRF-pinned via the domain
  * allowlist). Steps 1 and 4 are the agent's own egress to the service URL it
  * chose — standard x402-client behavior — so they skip the Sippar domain pin but
- * still require HTTPS and block private/internal IPs.
+ * still require HTTPS and block private/internal IPs. The caller's payload /
+ * method / headers (ServiceRequest) go to the SERVICE here, never to Sippar.
  *
  * Auth: while Sippar is in private beta the credential endpoint sits behind the
  * stealth gate, so the request carries the access token in `X-Sippar-Access`.
@@ -28,6 +29,7 @@ import { validateDomain, ALLOWED_DOMAINS } from './security.js';
 import type {
   DestChain,
   ServicePaymentRequirements,
+  ServiceRequest,
   X402Credential,
   ServiceFetchResult,
 } from './types.js';
@@ -60,8 +62,7 @@ async function safeText(res: Response): Promise<string> {
  */
 export async function probeService(
   serviceUrl: string,
-  method: 'GET' | 'POST' = 'POST',
-  body: unknown = {},
+  req: ServiceRequest = {},
 ): Promise<ServicePaymentRequirements> {
   // Agent's own egress: require HTTPS + block private IPs, but NO domain pin.
   const check = validateDomain(serviceUrl, []);
@@ -69,10 +70,11 @@ export async function probeService(
     throw new Error(`Refusing to contact service URL: ${check.reason}`);
   }
 
+  const method = req.method ?? 'POST';
   const res = await fetch(serviceUrl, {
     method,
-    headers: { 'Content-Type': 'application/json' },
-    body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined,
+    headers: { 'Content-Type': 'application/json', ...(req.headers ?? {}) },
+    body: method === 'POST' ? JSON.stringify(req.payload ?? {}) : undefined,
     redirect: 'error',
   });
 
@@ -101,8 +103,7 @@ export async function probeService(
   }
 
   // Header form (V1): PAYMENT-REQUIRED / X-PAYMENT-REQUIRED, plain JSON or base64.
-  const hdr =
-    res.headers.get('payment-required') || res.headers.get('x-payment-required');
+  const hdr = res.headers.get('payment-required') || res.headers.get('x-payment-required');
   if (hdr) {
     let h: any = null;
     try {
@@ -188,67 +189,68 @@ export async function getCredential(params: {
  * want the V2 `accepted`/`resource` shape, tried as a fallback.
  */
 function buildEnvelope(
-  req: ServicePaymentRequirements,
+  reqs: ServicePaymentRequirements,
   serviceUrl: string,
   cred: X402Credential,
   version: 1 | 2,
 ): string {
   const payload = { signature: cred.signature, authorization: cred.authorization };
   let envelope: Record<string, unknown>;
-  if (version === 2 && req.accepted) {
-    const { resource: _r, description: _d, mimeType: _m, ...rest } = req.accepted as Record<
+  if (version === 2 && reqs.accepted) {
+    const { resource: _r, description: _d, mimeType: _m, ...rest } = reqs.accepted as Record<
       string,
       unknown
     >;
     envelope = {
       x402Version: 2,
-      accepted: { ...rest, scheme: 'exact', network: req.network },
+      accepted: { ...rest, scheme: 'exact', network: reqs.network },
       resource: {
         url: serviceUrl,
-        description: (req.accepted as any).description ?? 'API access',
-        mimeType: (req.accepted as any).mimeType ?? 'application/json',
+        description: (reqs.accepted as any).description ?? 'API access',
+        mimeType: (reqs.accepted as any).mimeType ?? 'application/json',
       },
       extensions: {},
       payload,
     };
   } else {
-    envelope = { x402Version: 1, scheme: 'exact', network: req.network, payload };
+    envelope = { x402Version: 1, scheme: 'exact', network: reqs.network, payload };
   }
   return Buffer.from(JSON.stringify(envelope)).toString('base64');
 }
 
 /**
- * Step 4: the AGENT re-POSTs the service with the X-PAYMENT envelope and returns
+ * Step 4: the AGENT re-calls the service with the X-PAYMENT envelope and returns
  * the response. Sippar never sees this request or its response. Tries the V1
  * envelope first, then V2 if the service rejects it.
  */
 export async function fetchWithCredential(
   serviceUrl: string,
-  method: 'GET' | 'POST',
-  body: unknown,
-  req: ServicePaymentRequirements,
+  reqs: ServicePaymentRequirements,
   cred: X402Credential,
+  req: ServiceRequest = {},
 ): Promise<ServiceFetchResult> {
   const check = validateDomain(serviceUrl, []);
   if (!check.valid) {
     throw new Error(`Refusing to contact service URL: ${check.reason}`);
   }
 
+  const method = req.method ?? 'POST';
   const order: Array<1 | 2> = [1, 2];
   let last: { status: number; text: string } = { status: 0, text: '' };
 
   for (const version of order) {
-    if (version === 2 && !req.accepted) continue;
-    const xPayment = buildEnvelope(req, serviceUrl, cred, version);
+    if (version === 2 && !reqs.accepted) continue;
+    const xPayment = buildEnvelope(reqs, serviceUrl, cred, version);
     const res = await fetch(serviceUrl, {
       method,
       headers: {
         'Content-Type': 'application/json',
+        ...(req.headers ?? {}),
         'PAYMENT-SIGNATURE': xPayment,
         'X-PAYMENT': xPayment,
         PAYMENT: xPayment,
       },
-      body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined,
+      body: method === 'POST' ? JSON.stringify(req.payload ?? {}) : undefined,
       redirect: 'error',
     });
 

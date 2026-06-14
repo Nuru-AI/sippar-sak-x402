@@ -123,7 +123,7 @@ describe('fetchWithCredential', () => {
     const spy = mockFetch(
       () => new Response(JSON.stringify({ result: 'trending' }), { status: 200, headers: { 'x-payment-response': 'eyJ0eCI6IjB4YWJjIn0=' } }),
     );
-    const r = await fetchWithCredential(SERVICE, 'POST', {}, REQ, CRED);
+    const r = await fetchWithCredential(SERVICE, REQ, CRED);
     expect(r.status).toBe(200);
     expect(r.envelopeVersion).toBe(1);
     expect(r.response).toMatchObject({ result: 'trending' });
@@ -141,13 +141,13 @@ describe('fetchWithCredential', () => {
         ? new Response(JSON.stringify({ error: 'Invalid network' }), { status: 402 })
         : new Response(JSON.stringify({ ok: true }), { status: 200 });
     });
-    const r = await fetchWithCredential(SERVICE, 'POST', {}, REQ, CRED);
+    const r = await fetchWithCredential(SERVICE, REQ, CRED);
     expect(r.status).toBe(200);
     expect(r.envelopeVersion).toBe(2);
   });
 
   it('throws if the service rejects every envelope shape', async () => {
     mockFetch(() => new Response('nope', { status: 402 }));
-    await expect(fetchWithCredential(SERVICE, 'POST', {}, REQ, CRED)).rejects.toThrow(/rejected the payment credential/);
+    await expect(fetchWithCredential(SERVICE, REQ, CRED)).rejects.toThrow(/rejected the payment credential/);
   });
 });

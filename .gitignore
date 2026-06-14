@@ -10,3 +10,5 @@ dist/
 sippar-demo.gif
 sippar-grant-demo.mp4
 *.mp4
+# Exception: assets/sippar-demo.gif is rendered from a key-redacted cast (safe to publish).
+!assets/sippar-demo.gif

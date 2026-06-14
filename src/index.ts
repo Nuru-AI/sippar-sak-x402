@@ -19,17 +19,19 @@ import type { Plugin, SolanaAgentKit } from 'solana-agent-kit';
 import { z } from 'zod';
 import { signAndSendUSDC } from './solana.js';
 import { probeService, getCredential, fetchWithCredential } from './relay.js';
-import { DEST_CHAINS, type DestChain, type PayAndCallResult } from './types.js';
+import { DEST_CHAINS, type DestChain, type PayAndCallResult, type PayOptions } from './types.js';
 
 const inputSchema = z.object({
   serviceUrl: z.string().url().startsWith('https://', 'serviceUrl must use https'),
   destChain: z.enum(DEST_CHAINS),
-  /** Request payload sent to the service (the agent's content — never seen by Sippar). */
-  requestBody: z.record(z.unknown()).optional(),
   /** Optional spend cap in micro-USDC; aborts before paying if exceeded. */
   maxPriceMicroUsdc: z.string().optional(),
-  /** Sippar margin in basis points added to the Solana payment (default 0). */
-  feeBps: z.number().int().min(0).optional(),
+  /** Request body forwarded to the SERVICE (the agent's content — never seen by Sippar). */
+  payload: z.unknown().optional(),
+  /** HTTP method the service expects (defaults to POST). */
+  method: z.enum(['GET', 'POST']).optional(),
+  /** Extra headers forwarded to the SERVICE. */
+  headers: z.record(z.string()).optional(),
 });
 
 /** Block explorer URL for a destination-chain tx hash. */
@@ -76,32 +78,32 @@ async function payAndCall(
   agent: SolanaAgentKit,
   serviceUrl: string,
   destChain: DestChain,
-  opts: { requestBody?: Record<string, unknown>; maxPriceMicroUsdc?: bigint; feeBps?: number } = {},
+  opts: PayOptions = {},
 ): Promise<PayAndCallResult> {
-  // 1. Agent probes the SERVICE directly — Sippar never sees this.
-  const req = await probeService(serviceUrl, 'POST', opts.requestBody ?? {});
+  const { maxPriceMicroUsdc, ...serviceReq } = opts;
 
-  const amount = BigInt(req.amount);
-  if (opts.maxPriceMicroUsdc !== undefined && amount > opts.maxPriceMicroUsdc) {
-    throw new Error(`Price ${amount} microUSDC exceeds max ${opts.maxPriceMicroUsdc} microUSDC`);
+  // 1. Agent probes the SERVICE directly — Sippar never sees this.
+  const reqs = await probeService(serviceUrl, serviceReq);
+
+  const amount = BigInt(reqs.amount);
+  if (maxPriceMicroUsdc !== undefined && amount > maxPriceMicroUsdc) {
+    throw new Error(`Price ${amount} microUSDC exceeds max ${maxPriceMicroUsdc} microUSDC`);
   }
 
-  // 2. Pay Sippar's Solana treasury (amount + optional fee).
-  const feeBps = BigInt(opts.feeBps ?? 0);
-  const sourceAmount = amount + (amount * feeBps) / 10_000n;
-  const sig = await signAndSendUSDC(agent, sourceAmount);
+  // 2. Pay Sippar's Solana treasury (the source payment).
+  const sig = await signAndSendUSDC(agent, amount);
 
   // 3. Sippar signs a treasury EIP-3009 credential (sees only payTo/amount + the Solana tx).
   const cred = await getCredential({
     sourcePaymentTx: sig,
     destChain,
-    payTo: req.payTo,
-    amount: req.amount,
-    asset: req.asset,
+    payTo: reqs.payTo,
+    amount: reqs.amount,
+    asset: reqs.asset,
   });
 
   // 4. Agent fetches the service itself with the credential — Sippar never sees the response.
-  const result = await fetchWithCredential(serviceUrl, 'POST', opts.requestBody ?? {}, req, cred);
+  const result = await fetchWithCredential(serviceUrl, reqs, cred, serviceReq);
 
   return {
     success: true,
@@ -110,8 +112,8 @@ async function payAndCall(
     destChain,
     destTxUrl: destTxUrl(destChain, settlementTxFromReceipt(result.settlementReceipt)),
     cost: {
-      microUsdc: sourceAmount.toString(),
-      usdc: Number(sourceAmount) / 1_000_000,
+      microUsdc: amount.toString(),
+      usdc: Number(amount) / 1_000_000,
     },
     envelopeVersion: result.envelopeVersion,
     response: result.response,
@@ -136,17 +138,19 @@ export const SipparX402Plugin: Plugin = {
         'Pay USDC on Solana to access an x402 service on Base, Arbitrum, Optimism, ' +
         'Polygon, or BNB. Content-private: Sippar signs a payment credential but the ' +
         'agent fetches the service itself, so Sippar never sees the request or response. ' +
-        'Returns the service response plus the Solana transaction URL.',
+        'Pass `payload` to send a request body for services that take input. Returns the ' +
+        'service response plus the Solana transaction URL.',
       examples: [
         [
           {
             input: {
               serviceUrl: 'https://mesh.heurist.xyz/x402/agents/TrendingTokenAgent/get_trending_tokens',
               destChain: 'base',
+              payload: { query: 'latest Solana DeFi TVL' },
             },
             output: { success: true, response: '...' },
             explanation:
-              'Agent paid Solana USDC, Sippar signed a Base credential, the agent called the service directly.',
+              'Agent paid Solana USDC, Sippar signed a Base credential, and the agent called the service directly.',
           },
         ],
       ],
@@ -154,10 +158,11 @@ export const SipparX402Plugin: Plugin = {
       handler: async (agent: SolanaAgentKit, input: Record<string, unknown>) => {
         const parsed = inputSchema.parse(input);
         return payAndCall(agent, parsed.serviceUrl, parsed.destChain as DestChain, {
-          requestBody: parsed.requestBody,
           maxPriceMicroUsdc:
             parsed.maxPriceMicroUsdc !== undefined ? BigInt(parsed.maxPriceMicroUsdc) : undefined,
-          feeBps: parsed.feeBps,
+          payload: parsed.payload,
+          method: parsed.method,
+          headers: parsed.headers,
         });
       },
     },
