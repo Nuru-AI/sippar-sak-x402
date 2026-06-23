@@ -50,3 +50,13 @@ Building with Claude, Cursor, or another AI assistant? Add `https://gitmcp.io/Nu
 ## License
 
 MIT
+
+## Discover more Sippar services
+
+This is one integration. The full Sippar catalog of payable x402 services across many chains (with prices and usage) is discoverable here:
+
+- Machine-readable: <https://sippar.network/llms.txt> and <https://sippar.network/api/sippar/marketplace>
+- Web: <https://sippar.network/marketplace>
+- For AI agents (MCP): <https://sippar.network/mcp> (call `discover_services`, then `pay`)
+
+Sippar settles x402/MPP payments from one threshold-derived wallet and returns an on-chain receipt per payment.
